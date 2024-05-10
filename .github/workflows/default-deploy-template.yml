@@ -20,7 +20,7 @@ env:
   # Syntax for workflow names is: job-name-in-caller-workflow / job-name-in-this-workflow https://stackoverflow.com/questions/71240338/
   STAGING_WORKFLOW_NAME: Environments / Staging
   PRODUCTION_WORKFLOW_NAME: Environments / Production
-  SLACK_CHANNEL_ID: C072W9VF6QL
+  SLACK_CHANNEL_ID: C072R6HPW21
 
 jobs:
   deploy-staging:
