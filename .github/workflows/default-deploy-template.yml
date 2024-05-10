@@ -212,7 +212,7 @@ jobs:
         with:
           channel-id: ${{env.SLACK_CHANNEL_ID}}
           payload: >
-                {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*In progress: build being promoted to production* 🏗️"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details","url":"${{steps.get-job-url.outputs.result}}"},"value":"click_me"}]}]}
+                {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*In progress: build being promoted to production* 🏗️"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details"},"value":"click_me","url":"${{steps.get-job-url.outputs.result}}"}]}]}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
 
@@ -296,6 +296,6 @@ jobs:
         with:
           channel-id: ${{env.SLACK_CHANNEL_ID}}
           payload: >
-                {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*Build deployed to production* 🏠 \n - Target server: ${{inputs.target_production_server_nickname}}"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details","url":"${{steps.get-job-url.outputs.result}}"},"value":"click_me"}]}]}
+                {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*Build deployed to production* 🏠 \n - Target server: ${{inputs.target_production_server_nickname}}"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details"},"value":"click_me","url":"${{steps.get-job-url.outputs.result}}"}]}]}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
