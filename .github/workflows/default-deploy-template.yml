@@ -33,14 +33,19 @@ jobs:
       - name: Checkout code into GitHub environment
         uses: actions/checkout@v4
 
-      - name: Get URL from compose file
+      - name: Get subdomain from compose file
         run: |
-          pip install pyyaml
           [ -f "docker-compose.yml" ] && file="docker-compose.yml" || file="docker-compose.yaml"
           if [ -f "$file" ]; then
-            value=$(python -c "import yaml; print(yaml.safe_load(open('$file'))['ports'] if 'ports' in yaml.safe_load(open('$file')) else exit(1))")
-            echo "$value"
+            value=$(sed -n "s/^$KEY_TO_FIND: *\(.*\)/\1/p" "$file")
+          if [ -z "$value" ]; then
+            echo "Subdomain not found in $file"
+            exit 1
           else
+            echo "$value"
+          fi
+          else
+            echo "$file not found"
             exit 1
           fi
 
