@@ -37,7 +37,7 @@ jobs:
         run: |
           [ -f "docker-compose.yml" ] && file="docker-compose.yml" || file="docker-compose.yaml"
           if [ -f "$file" ]; then
-            value=$(sed -n "s/^$KEY_TO_FIND: *\(.*\)/\1/p" "$file")
+            value=$(sed -n "s/^ports: *\(.*\)/\1/p" "$file")
           if [ -z "$value" ]; then
             echo "Subdomain not found in $file"
             exit 1
