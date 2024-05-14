@@ -37,9 +37,8 @@ jobs:
         run: |
           pip install pyyaml
           [ -f "docker-compose.yml" ] && file="docker-compose.yml" || file="docker-compose.yaml"
-          [ -f "$file" ] && python -c "import yaml; print(yaml.safe_load(open('$file'))['key'])" || echo "Neither docker-compose.yml nor docker-compose.yaml found."
           if [ -f "$file" ]; then
-            value=$(python -c "import yaml; print(yaml.safe_load(open('$file'))['key'] if 'key' in yaml.safe_load(open('$file')) else exit(1))")
+            value=$(python -c "import yaml; print(yaml.safe_load(open('$file'))['ports'] if 'ports' in yaml.safe_load(open('$file')) else exit(1))")
             echo "$value"
           else
             exit 1
