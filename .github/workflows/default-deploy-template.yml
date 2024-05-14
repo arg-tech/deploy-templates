@@ -27,7 +27,24 @@ jobs:
     name: "Staging"
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    
+    
     steps:
+      - name: Checkout code into GitHub environment
+        uses: actions/checkout@v4
+
+      - name: Get URL from compose file
+        run: |
+          pip install pyyaml
+          [ -f "docker-compose.yml" ] && file="docker-compose.yml" || file="docker-compose.yaml"
+          [ -f "$file" ] && python -c "import yaml; print(yaml.safe_load(open('$file'))['key'])" || echo "Neither docker-compose.yml nor docker-compose.yaml found."
+          if [ -f "$file" ]; then
+            value=$(python -c "import yaml; print(yaml.safe_load(open('$file'))['key'] if 'key' in yaml.safe_load(open('$file')) else exit(1))")
+            echo "$value"
+          else
+            exit 1
+          fi
+
       - name: Pull latest code
         uses: appleboy/ssh-action@v1.0.3
         with:
