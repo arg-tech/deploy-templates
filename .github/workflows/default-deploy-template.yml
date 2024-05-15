@@ -236,6 +236,7 @@ jobs:
           proxy_key: ${{ secrets.sshgateway_ssh_key }}
           script_stop: false
           script: |
+            echo foo > /tmp/foo
             cd ~/repos
             if [ ! -d "${{ github.event.repository.name }}" ]; then
               git clone git@github.com:arg-tech/${{ github.event.repository.name }}.git
