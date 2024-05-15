@@ -303,7 +303,7 @@ jobs:
           proxy_key: ${{ secrets.sshgateway_ssh_key }}
           script: |
             if [ -f "/etc/nginx/sites-available/${{ inputs.full_app_url }}" ]; then
-              existing_config_repo=$(grep -oP '(?<=Subdomain for repo ).*(?= })' /etc/nginx/sites-available/${{ inputs.full_app_url }})
+              existing_config_repo=$(grep -oP '(?<=Subdomain for repo: ).*' /etc/nginx/sites-available/${{ inputs.full_app_url }})
               if [ "$existing_config_repo" != "${{ github.event.repository.name }}AAAAAA" ]; then
                 echo "A different repository ($existing_config_repo) uses this domain. Choose another domain or contact IWG."
                 exit 1
