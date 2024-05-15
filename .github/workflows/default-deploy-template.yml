@@ -32,138 +32,178 @@ env:
   SLACK_CHANNEL_ID: C072R6HPW21
 
 jobs:
-  # deploy-staging:
-  #   name: "Staging"
-  #   if: github.event_name == 'pull_request'
-  #   runs-on: ubuntu-latest
-    
-    
-  #   steps:
-  #     - name: Checkout code into GitHub environment
-  #       uses: actions/checkout@v4
-
-  #     - name: Pull latest code
-  #       uses: appleboy/ssh-action@v1.0.3
-  #       with:
-  #         host: ${{ env.STAGING_SERVER_HOST }}
-  #         username: ${{ env.DEPLOY_SSH_USER }}
-  #         key: ${{ secrets.staging_ssh_key }}
-  #         script_stop: false
-  #         script: |
-  #           cd ~/repos
-  #           if [ ! -d "${{ github.event.repository.name }}" ]; then
-  #             git clone git@github.com:arg-tech/${{ github.event.repository.name }}.git
-  #             echo "Repository cloned"
-  #           fi
+  deploy-staging:
+    name: "Staging"
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest    
+    steps:
+      - name: Pull latest code
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.STAGING_SERVER_HOST }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          key: ${{ secrets.staging_ssh_key }}
+          script_stop: false
+          script: |
+            cd ~/repos
+            if [ ! -d "${{ github.event.repository.name }}" ]; then
+              git clone git@github.com:arg-tech/${{ github.event.repository.name }}.git
+              echo "Repository cloned"
+            fi
               
-  #           cd "${{ github.event.repository.name }}"
-  #           git fetch
-  #           git checkout ${{ github.head_ref }}
-  #           git reset --hard HEAD
-  #           git merge '@{u}'
-  #           echo "Repository pulled and updated"
+            cd "${{ github.event.repository.name }}"
+            git fetch
+            git checkout ${{ github.head_ref }}
+            git reset --hard HEAD
+            git merge '@{u}'
+            echo "Repository pulled and updated"
 
-  #     - name: Check if up-to-date with main
-  #       if: github.base_ref == 'main'
-  #       uses: appleboy/ssh-action@v1.0.3
-  #       with:
-  #         host: ${{ env.STAGING_SERVER_HOST }}
-  #         username: ${{ env.DEPLOY_SSH_USER }}
-  #         key: ${{ secrets.staging_ssh_key }}
-  #         script_stop: false
-  #         script: |
-  #             cd ~/repos/${{ github.event.repository.name }}
-  #             if ! git merge-base --is-ancestor origin/main ${{ github.event.pull_request.head.sha }};
-  #             then echo "This branch is not up to date with main. It must be brought up to date so that staging is representative of production."; exit 1; 
-  #             fi
-  #             echo "This branch is up to date with main and can be safely merged."
+      - name: Check if up-to-date with main
+        if: github.base_ref == 'main'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.STAGING_SERVER_HOST }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          key: ${{ secrets.staging_ssh_key }}
+          script_stop: false
+          script: |
+              cd ~/repos/${{ github.event.repository.name }}
+              if ! git merge-base --is-ancestor origin/main ${{ github.event.pull_request.head.sha }};
+              then echo "This branch is not up to date with main. It must be brought up to date so that staging is representative of production."; exit 1; 
+              fi
+              echo "This branch is up to date with main and can be safely merged."
 
-  #     - name: Create project secrets
-  #       if: ${{ env.ARE_SECRETS_PRESENT == 'true' }}
-  #       env:
-  #         ARE_SECRETS_PRESENT: ${{ secrets.production_project_secrets != '' }}
-  #         SECRETS: ${{ secrets.production_project_secrets }}
-  #       uses: appleboy/ssh-action@v1.0.3
-  #       with:
-  #         host: ${{ env.STAGING_SERVER_HOST }}
-  #         username: ${{ env.DEPLOY_SSH_USER }}
-  #         key: ${{ secrets.staging_ssh_key }}
-  #         envs: SECRETS
-  #         script_stop: false
-  #         script: |
-  #           cd ~/repos/${{ github.event.repository.name }}
+      - name: Create project secrets
+        if: ${{ env.ARE_SECRETS_PRESENT == 'true' }}
+        env:
+          ARE_SECRETS_PRESENT: ${{ secrets.production_project_secrets != '' }}
+          SECRETS: ${{ secrets.production_project_secrets }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.STAGING_SERVER_HOST }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          key: ${{ secrets.staging_ssh_key }}
+          envs: SECRETS
+          script_stop: false
+          script: |
+            cd ~/repos/${{ github.event.repository.name }}
 
-  #           mkdir -p .secrets && cd "$_"
-  #           i=1
-  #           while secret=$(echo "$SECRETS" | cut -d "&" -f $i) ; [ -n "$secret" ] ;do
-  #               i=$((i+1))
+            mkdir -p .secrets && cd "$_"
+            i=1
+            while secret=$(echo "$SECRETS" | cut -d "&" -f $i) ; [ -n "$secret" ] ;do
+                i=$((i+1))
 
-  #               key=$(echo "$secret" | cut -d "=" -f 1)
-  #               value=$(echo "$secret" | cut -d "=" -f 2)
-  #               echo "$value" > "$key".txt
+                key=$(echo "$secret" | cut -d "=" -f 1)
+                value=$(echo "$secret" | cut -d "=" -f 2)
+                echo "$value" > "$key".txt
 
-  #               break
-  #           done
+                break
+            done
       
-  #     - name: Build containers
-  #       uses: appleboy/ssh-action@v1.0.3
-  #       with:
-  #         host: ${{ env.STAGING_SERVER_HOST }}
-  #         username: ${{ env.DEPLOY_SSH_USER }}
-  #         key: ${{ secrets.staging_ssh_key }}
-  #         script_stop: false
-  #         script: |
-  #           cd ~/repos/${{ github.event.repository.name }}
-  #           docker compose up -d --build
+      - name: Build containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.STAGING_SERVER_HOST }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          key: ${{ secrets.staging_ssh_key }}
+          script_stop: false
+          script: |
+            cd ~/repos/${{ github.event.repository.name }}
+            docker compose up -d --build
 
-  #     - name: Get build details URL
-  #       uses: actions/github-script@v7
-  #       continue-on-error: true
-  #       id: get-job-url
-  #       with:
-  #         script: |
-  #           const { data: workflow_run } = await github.rest.actions.listJobsForWorkflowRun({
-  #             owner: context.repo.owner,
-  #             repo: context.repo.repo,
-  #             run_id: context.runId
-  #           });
-  #           html_url = workflow_run.jobs.find((job) => job.name === "${{env.STAGING_WORKFLOW_NAME}}").html_url
-  #           html_url += "?pr=${{github.event.pull_request.number}}"
-  #           console.log(`URL is ${html_url}`)
-  #           return html_url
-  #         result-encoding: string
+      - name: Provision new subdomain
+        uses: appleboy/ssh-action@v1.0.3
+        id: provision-subdomain
+        with:
+          host: ${{ env.STAGING_SERVER_HOST }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          key: ${{ secrets.staging_ssh_key }}
+          script: |
+            staging_domain=$(echo "${{ inputs.full_app_url }}" | sed 's/amfws/amfws-staging/')
+            echo "staging_domain=$staging_domain" >> "$GITHUB_OUTPUT"
 
-  #     - name: Comment on PR
-  #       uses: actions/github-script@v7
-  #       with:
-  #         script: |
-  #           github.rest.issues.createComment({
-  #             issue_number: context.issue.number,
-  #             owner: context.repo.owner,
-  #             repo: context.repo.repo,
-  #             body: ` 
-  #             **New build (#${{github.run_number}}) deployed to staging** 🚧
-  #                 \- Test it by accessing 178.79.188.16:_<YOUR_PORT>_
-  #                 \- If you update the PR or create another one, a new build will be created, replacing this one
-  #                 \- [View build log](${{steps.get-job-url.outputs.result}})
+            if [ -f "/etc/nginx/sites-available/$staging_domain" ]; then
+              existing_config_repo=$(grep -oP '(?<=Subdomain for repo: ).*' /etc/nginx/sites-available/$staging_domain)
+              if [ "$existing_config_repo" != "${{ github.event.repository.name }}" ]; then
+                echo "A different repository ($existing_config_repo) uses this domain. Choose another domain or contact IWG."
+                exit 1
+              fi
+            fi
+
+            nginx_config="
+            # Subdomain for repo ${{ github.event.repository.name }}
+            server {
+              listen 80;
+              server_name $staging_domain;
+        
+              location / {
+                  proxy_set_header   X-Forwarded-For \$remote_addr;
+                  proxy_set_header   Host \$http_host;
+                  proxy_pass         \"http://127.0.0.1:${{ inputs.app_port }}\";
+              }
+            }"
+
+            file_path="/etc/nginx/sites-available/$staging_domain"
+            echo "$nginx_config" > "$file_path"
+            ln -s "$file_path" "/etc/nginx/sites-enabled/"
+
+            sudo nginx -t
+            if [ $? -eq 0 ]; then
+              sudo nginx -s reload
+              echo "Success: nginx configuration reloaded"
+            else
+              echo "Error: nginx configuration test failed. Please contact IWG immediately."
+              exit 1
+            fi
+
+      - name: Get build details URL
+        uses: actions/github-script@v7
+        continue-on-error: true
+        id: get-job-url
+        with:
+          script: |
+            const { data: workflow_run } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId
+            });
+            html_url = workflow_run.jobs.find((job) => job.name === "${{env.STAGING_WORKFLOW_NAME}}").html_url
+            html_url += "?pr=${{github.event.pull_request.number}}"
+            console.log(`URL is ${html_url}`)
+            return html_url
+          result-encoding: string
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: ` 
+              **New build (#${{github.run_number}}) deployed to staging** 🚧
+                  \- Test it by accessing ${{ steps.provision-subdomain.outputs.staging_domain }}
+                  \- If you update the PR or create another one, a new build will be created, replacing this one
+                  \- [View build log](${{steps.get-job-url.outputs.result}})
                       
-  #             **Note:** If this PR is to main, only authorized users will be allowed to merge. Once merged to main, the build will be promoted to the production server. 
-  #                   `
-  #           })
+              **Note:** If this PR is to main, only authorized users will be allowed to merge. Once merged to main, the build will be promoted to the production server. 
+                    `
+            })
 
-  #     # https://app.slack.com/block-kit-builder https://www.text-utils.com/json-formatter/
-  #     - name: Post update to Slack
-  #       uses: slackapi/slack-github-action@v1.26.0
-  #       with:
-  #         channel-id: ${{env.SLACK_CHANNEL_ID}}
-  #         payload: >
-  #               {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*New build (#${{github.run_number}}) deployed to staging* 🚧 \n - Test it by accessing 178.79.188.16:_<YOUR_PORT>_\n - If you update the PR or create another one, a new build will be created, replacing this one \n\n *Note:* If this PR is to main, only authorized users will be allowed to merge. Once merged to main, the build will be promoted to the production server. "}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details"},"value":"click_me","url":"${{steps.get-job-url.outputs.result}}"}]}]}
-  #       env:
-  #         SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
+      # https://app.slack.com/block-kit-builder https://www.text-utils.com/json-formatter/
+      - name: Post update to Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          channel-id: ${{env.SLACK_CHANNEL_ID}}
+          payload: >
+                {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*New build (#${{github.run_number}}) deployed to staging* 🚧 \n - Test it by accessing ${{ steps.provision-subdomain.outputs.staging_domain }}\n - If you update the PR or create another one, a new build will be created, replacing this one \n\n *Note:* If this PR is to main, only authorized users will be allowed to merge. Once merged to main, the build will be promoted to the production server. "}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details"},"value":"click_me","url":"${{steps.get-job-url.outputs.result}}"}]}]}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
 
   deploy-production:
     name: "Production"
-    # if: github.event_name == 'push' && github.ref_name == 'main'
+    if: github.event_name == 'push' && github.ref_name == 'main'
     runs-on: ubuntu-latest
     steps:
       # - name: Convert production host nickname to IP address
@@ -230,29 +270,29 @@ jobs:
       #   env:
       #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
 
-      # - name: Pull latest code
-      #   uses: appleboy/ssh-action@v1.0.3
-      #   with:
-      #     host: argand
-      #     username: deploy-user
-      #     key: ${{ secrets.argand_ssh_key }}
-      #     proxy_host: sshgateway.computing.dundee.ac.uk
-      #     proxy_username: ${{ env.DEPLOY_SSH_USER }}
-      #     proxy_key: ${{ secrets.sshgateway_ssh_key }}
-      #     script_stop: false
-      #     script: |
-      #       cd ~/repos
-      #       if [ ! -d "${{ github.event.repository.name }}" ]; then
-      #         git clone git@github.com:arg-tech/${{ github.event.repository.name }}.git
-      #         echo "Repository cloned"
-      #       fi
+      - name: Pull latest code
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.ARGAND_HOST }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          key: ${{ secrets.argand_ssh_key }}
+          proxy_host: ${{ env.SSH_GATEWAY_HOST }}
+          proxy_username: ${{ env.DEPLOY_SSH_USER }}
+          proxy_key: ${{ secrets.sshgateway_ssh_key }}
+          script_stop: false
+          script: |
+            cd ~/repos
+            if [ ! -d "${{ github.event.repository.name }}" ]; then
+              git clone git@github.com:arg-tech/${{ github.event.repository.name }}.git
+              echo "Repository cloned"
+            fi
               
-      #       cd "${{ github.event.repository.name }}"
-      #       git fetch
-      #       git checkout ${{ github.head_ref }}
-      #       git reset --hard HEAD
-      #       git merge '@{u}'
-      #       echo "Repository pulled and updated"  
+            cd "${{ github.event.repository.name }}"
+            git fetch
+            git checkout ${{ github.head_ref }}
+            git reset --hard HEAD
+            git merge '@{u}'
+            echo "Repository pulled and updated"  
 
       # - name: Create project secrets
       #   if: ${{ env.ARE_SECRETS_PRESENT == 'true' }}
@@ -304,7 +344,7 @@ jobs:
           script: |
             if [ -f "/etc/nginx/sites-available/${{ inputs.full_app_url }}" ]; then
               existing_config_repo=$(grep -oP '(?<=Subdomain for repo: ).*' /etc/nginx/sites-available/${{ inputs.full_app_url }})
-              if [ "$existing_config_repo" != "${{ github.event.repository.name }}AAAAAA" ]; then
+              if [ "$existing_config_repo" != "${{ github.event.repository.name }}" ]; then
                 echo "A different repository ($existing_config_repo) uses this domain. Choose another domain or contact IWG."
                 exit 1
               fi
@@ -378,3 +418,27 @@ jobs:
       #           {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*Build deployed to production* 🏠 \n - Target server: ${{inputs.target_production_server_nickname}} \n - Tip: delete the source branch, and for future work create a fresh one from main to avoid merge conflicts"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details"},"value":"click_me","url":"${{steps.get-job-url.outputs.result}}"}]}]}
       #   env:
       #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
+
+      - name: Remove from staging server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.STAGING_SERVER_HOST }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          key: ${{ secrets.staging_ssh_key }}
+          script: |
+            cd ~/repos/${{ github.event.repository.name }}
+            docker compose down
+
+            staging_domain=$(echo "${{ inputs.full_app_url }}" | sed 's/amfws/amfws-staging/')
+            file_path="/etc/nginx/sites-available/$staging_domain"
+            rm $file_path
+            rm /etc/nginx/sites-enabled/$(basename "$file_path")
+
+            sudo nginx -t
+            if [ $? -eq 0 ]; then
+              sudo nginx -s reload
+              echo "Success: nginx configuration reloaded"
+            else
+              echo "Error: nginx configuration test on STAGING failed. Please contact IWG."
+              exit 1
+            fi
