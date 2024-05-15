@@ -414,6 +414,8 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
 
       - name: Remove artifacts from staging server
+        # Logs utility should stay on the staging server
+        if: ${{ github.event.repository.name }} != 'dozzle-log-streamer'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ env.STAGING_SERVER_HOST }}
