@@ -157,6 +157,10 @@ jobs:
               exit 1
             fi
 
+      - name: Print staging domain
+        run: |
+          echo "Staging domain is: ${{ steps.provision-subdomain.outputs.staging_domain }}"
+
       - name: Get build details URL
         uses: actions/github-script@v7
         continue-on-error: true
@@ -184,7 +188,7 @@ jobs:
               repo: context.repo.repo,
               body: ` 
               **New build (#${{github.run_number}}) deployed to staging** 🚧
-                  \- Test it by accessing ${{ steps.provision-subdomain.outputs.staging_domain }}
+                  \- Test it by accessing URL: ${{ steps.provision-subdomain.outputs.staging_domain }}
                   \- If you update the PR or create another one, a new build will be created, replacing this one
                   \- [View build log](${{steps.get-job-url.outputs.result}})
                       
