@@ -43,7 +43,6 @@ jobs:
           host: ${{ env.STAGING_SERVER_HOST }}
           username: ${{ env.DEPLOY_SSH_USER }}
           key: ${{ secrets.staging_ssh_key }}
-          script_stop: false
           script: |
             cd ~/repos
             if [ ! -d "${{ github.event.repository.name }}" ]; then
@@ -65,7 +64,6 @@ jobs:
           host: ${{ env.STAGING_SERVER_HOST }}
           username: ${{ env.DEPLOY_SSH_USER }}
           key: ${{ secrets.staging_ssh_key }}
-          script_stop: false
           script: |
               cd ~/repos/${{ github.event.repository.name }}
               if ! git merge-base --is-ancestor origin/main ${{ github.event.pull_request.head.sha }};
@@ -84,7 +82,6 @@ jobs:
           username: ${{ env.DEPLOY_SSH_USER }}
           key: ${{ secrets.staging_ssh_key }}
           envs: SECRETS
-          script_stop: false
           script: |
             cd ~/repos/${{ github.event.repository.name }}
 
@@ -106,7 +103,6 @@ jobs:
           host: ${{ env.STAGING_SERVER_HOST }}
           username: ${{ env.DEPLOY_SSH_USER }}
           key: ${{ secrets.staging_ssh_key }}
-          script_stop: false
           script: |
             cd ~/repos/${{ github.event.repository.name }}
             docker compose up -d --build
@@ -286,7 +282,6 @@ jobs:
           proxy_host: ${{ env.SSH_GATEWAY_HOST }}
           proxy_username: ${{ env.DEPLOY_SSH_USER }}
           proxy_key: ${{ secrets.sshgateway_ssh_key }}
-          script_stop: false
           script: |
             cd ~/repos
             if [ ! -d "${{ github.event.repository.name }}" ]; then
@@ -308,11 +303,13 @@ jobs:
           SECRETS: ${{ secrets.production_project_secrets }}
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ steps.convert-nickname.outputs.production_host }}
+          host: ${{ env.ARGAND_HOST }}
           username: ${{ env.DEPLOY_SSH_USER }}
-          key: ${{ secrets.production_primary_ssh_key }}
+          key: ${{ secrets.argand_ssh_key }}
+          proxy_host: ${{ env.SSH_GATEWAY_HOST }}
+          proxy_username: ${{ env.DEPLOY_SSH_USER }}
+          proxy_key: ${{ secrets.sshgateway_ssh_key }}
           envs: SECRETS
-          script_stop: false
           script: |
             cd ~/repos/${{ github.event.repository.name }}
 
@@ -331,10 +328,12 @@ jobs:
       - name: Build containers
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ steps.convert-nickname.outputs.production_host }}
+          host: ${{ env.ARGAND_HOST }}
           username: ${{ env.DEPLOY_SSH_USER }}
-          key: ${{ secrets.production_primary_ssh_key }}
-          script_stop: false
+          key: ${{ secrets.argand_ssh_key }}
+          proxy_host: ${{ env.SSH_GATEWAY_HOST }}
+          proxy_username: ${{ env.DEPLOY_SSH_USER }}
+          proxy_key: ${{ secrets.sshgateway_ssh_key }}
           script: |
             cd ~/repos/${{ github.event.repository.name }}
             docker compose up -d --build
