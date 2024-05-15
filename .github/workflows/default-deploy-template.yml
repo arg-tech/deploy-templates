@@ -212,69 +212,70 @@ jobs:
     if: github.event_name == 'push' && github.ref_name == 'main'
     runs-on: ubuntu-latest
     steps:
-      # - name: Convert production host nickname to IP address
-      #   id: convert-nickname
-      #   run: |
-      #     case "${{ inputs.target_production_server_nickname }}" in
-      #       "primary") IP_ADDRESS="212.71.250.173" ;;
-      #       *) echo "Invalid nickname"; exit 1 ;;
-      #     esac
-      #     echo "ip_address=$IP_ADDRESS" >> "$GITHUB_OUTPUT"
-      #     echo "Converted server nickname '${{ inputs.target_production_server_nickname }}' to IP address '${IP_ADDRESS}'."
+      - name: Convert production host nickname to actual hostname
+        id: convert-nickname
+        run: |
+          case "${{ inputs.target_production_server_nickname }}" in
+            "primary") production_host="212.71.250.173" ;;
+            "argand") production_host="argand" ;;
+            *) echo "Invalid nickname"; exit 1 ;;
+          esac
+          echo "production_host=$production_host" >> "$GITHUB_OUTPUT"
+          echo "Converted server nickname '${{ inputs.target_production_server_nickname }}' to hostname '$production_host'."
 
-      # - name: Get PR number
-      #   uses: actions/github-script@v7
-      #   id: get-pr-number
-      #   with:
-      #     script: |
-      #       return (await
-      #         github.rest.repos.listPullRequestsAssociatedWithCommit({
-      #           commit_sha: context.sha,
-      #           owner: context.repo.owner,
-      #           repo: context.repo.repo,
-      #         })).data[0].number;
-      #     result-encoding: string
+      - name: Get PR number
+        uses: actions/github-script@v7
+        id: get-pr-number
+        with:
+          script: |
+            return (await
+              github.rest.repos.listPullRequestsAssociatedWithCommit({
+                commit_sha: context.sha,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              })).data[0].number;
+          result-encoding: string
 
-      # - name: Get build details URL
-      #   uses: actions/github-script@v7
-      #   continue-on-error: true
-      #   id: get-job-url
-      #   with:
-      #     script: |
-      #       const { data: workflow_run } = await github.rest.actions.listJobsForWorkflowRun({
-      #         owner: context.repo.owner,
-      #         repo: context.repo.repo,
-      #         run_id: context.runId
-      #       });
-      #       html_url = workflow_run.jobs.find((job) => job.name === "${{env.PRODUCTION_WORKFLOW_NAME}}").html_url
-      #       html_url += "?pr=${{steps.get-pr-number.outputs.result}}"
-      #       console.log(`URL is ${html_url}`)
-      #       return html_url
-      #     result-encoding: string
+      - name: Get build details URL
+        uses: actions/github-script@v7
+        continue-on-error: true
+        id: get-job-url
+        with:
+          script: |
+            const { data: workflow_run } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId
+            });
+            html_url = workflow_run.jobs.find((job) => job.name === "${{env.PRODUCTION_WORKFLOW_NAME}}").html_url
+            html_url += "?pr=${{steps.get-pr-number.outputs.result}}"
+            console.log(`URL is ${html_url}`)
+            return html_url
+          result-encoding: string
 
-      # - name: Comment on PR (started build)
-      #   uses: actions/github-script@v7
-      #   with:
-      #     script: |
-      #       github.rest.issues.createComment({
-      #         issue_number: ${{steps.get-pr-number.outputs.result}},
-      #         owner: context.repo.owner,
-      #         repo: context.repo.repo,
-      #         body: ` 
-      #         **In progress: build being promoted to production** 🏗️ 
-      #           \- [View build log](${{steps.get-job-url.outputs.result}})
-      #         `
-      #       })
+      - name: Comment on PR (started build)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: ${{steps.get-pr-number.outputs.result}},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: ` 
+              **In progress: build being promoted to production** 🏗️ 
+                \- [View build log](${{steps.get-job-url.outputs.result}})
+              `
+            })
 
-      # # https://app.slack.com/block-kit-builder https://www.text-utils.com/json-formatter/
-      # - name: Post update to Slack
-      #   uses: slackapi/slack-github-action@v1.26.0
-      #   with:
-      #     channel-id: ${{env.SLACK_CHANNEL_ID}}
-      #     payload: >
-      #           {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*In progress: build being promoted to production* 🏗️"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details"},"value":"click_me","url":"${{steps.get-job-url.outputs.result}}"}]}]}
-      #   env:
-      #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
+      # https://app.slack.com/block-kit-builder https://www.text-utils.com/json-formatter/
+      - name: Post update to Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          channel-id: ${{env.SLACK_CHANNEL_ID}}
+          payload: >
+                {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*In progress: build being promoted to production* 🏗️"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details"},"value":"click_me","url":"${{steps.get-job-url.outputs.result}}"}]}]}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
 
       - name: Pull latest code
         uses: appleboy/ssh-action@v1.0.3
@@ -300,43 +301,43 @@ jobs:
             git merge '@{u}'
             echo "Repository pulled and updated"  
 
-      # - name: Create project secrets
-      #   if: ${{ env.ARE_SECRETS_PRESENT == 'true' }}
-      #   env:
-      #     ARE_SECRETS_PRESENT: ${{ secrets.production_project_secrets != '' }}
-      #     SECRETS: ${{ secrets.production_project_secrets }}
-      #   uses: appleboy/ssh-action@v1.0.3
-      #   with:
-      #     host: ${{ steps.convert-nickname.outputs.ip_address }}
-      #     username: ${{ env.DEPLOY_SSH_USER }}
-      #     key: ${{ secrets.production_primary_ssh_key }}
-      #     envs: SECRETS
-      #     script_stop: false
-      #     script: |
-      #       cd ~/repos/${{ github.event.repository.name }}
+      - name: Create project secrets
+        if: ${{ env.ARE_SECRETS_PRESENT == 'true' }}
+        env:
+          ARE_SECRETS_PRESENT: ${{ secrets.production_project_secrets != '' }}
+          SECRETS: ${{ secrets.production_project_secrets }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ steps.convert-nickname.outputs.production_host }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          key: ${{ secrets.production_primary_ssh_key }}
+          envs: SECRETS
+          script_stop: false
+          script: |
+            cd ~/repos/${{ github.event.repository.name }}
 
-      #       mkdir -p .secrets && cd "$_"
-      #       i=1
-      #       while secret=$(echo "$SECRETS" | cut -d "&" -f $i) ; [ -n "$secret" ] ;do
-      #           i=$((i+1))
+            mkdir -p .secrets && cd "$_"
+            i=1
+            while secret=$(echo "$SECRETS" | cut -d "&" -f $i) ; [ -n "$secret" ] ;do
+                i=$((i+1))
 
-      #           key=$(echo "$secret" | cut -d "=" -f 1)
-      #           value=$(echo "$secret" | cut -d "=" -f 2)
-      #           echo "$value" > "$key".txt
+                key=$(echo "$secret" | cut -d "=" -f 1)
+                value=$(echo "$secret" | cut -d "=" -f 2)
+                echo "$value" > "$key".txt
 
-      #           break
-      #       done
+                break
+            done
       
-      # - name: Build containers
-      #   uses: appleboy/ssh-action@v1.0.3
-      #   with:
-      #     host: ${{ steps.convert-nickname.outputs.ip_address }}
-      #     username: ${{ env.DEPLOY_SSH_USER }}
-      #     key: ${{ secrets.production_primary_ssh_key }}
-      #     script_stop: false
-      #     script: |
-      #       cd ~/repos/${{ github.event.repository.name }}
-      #       docker compose up -d --build
+      - name: Build containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ steps.convert-nickname.outputs.production_host }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          key: ${{ secrets.production_primary_ssh_key }}
+          script_stop: false
+          script: |
+            cd ~/repos/${{ github.event.repository.name }}
+            docker compose up -d --build
 
       - name: Provision new subdomain
         uses: appleboy/ssh-action@v1.0.3
@@ -385,50 +386,34 @@ jobs:
               exit 1
             fi
 
-      # - name: Get subdomain from compose file
-      #   id: get-subdomain
-      #   run: |
-      #     [ -f "docker-compose.yml" ] && file="docker-compose.yml" || file="docker-compose.yaml"
-      #     if [ -f "$file" ]; then
-      #       value=$(sed -n "s/DOZZLE_AUTH_PROVIDER: *\(.*\)/\1/p" "$file")
-      #     if [ -z "$value" ]; then
-      #       $value = "No subdomain set"
-      #     fi
-      #     echo "Subdomain is: $value"
-      #     echo "subdomain=$value" >> "$GITHUB_OUTPUT"
-      #     else
-      #       echo "$file not found"
-      #       exit 1
-      #     fi
+      - name: Comment on PR (finished build)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: ${{steps.get-pr-number.outputs.result}},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: ` 
+              **Build deployed to production** 🏠 
+                \- Target server: ${{inputs.target_production_server_nickname}}
+                \- Your app's URL: [${{inputs.full_app_url}}](http://${{inputs.full_app_url}})
+                \- Tip: delete the source branch, and for future work create a fresh one from main to avoid merge conflicts
+                \- [View build log](${{steps.get-job-url.outputs.result}})
+              `
+            })
 
-      # - name: Comment on PR (finished build)
-      #   uses: actions/github-script@v7
-      #   with:
-      #     script: |
-      #       github.rest.issues.createComment({
-      #         issue_number: ${{steps.get-pr-number.outputs.result}},
-      #         owner: context.repo.owner,
-      #         repo: context.repo.repo,
-      #         body: ` 
-      #         **Build deployed to production** 🏠 
-      #           \- Target server: ${{inputs.target_production_server_nickname}}
-      #           \- Your app's URL: [${{inputs.full_app_url}}](http://${{inputs.full_app_url}})
-      #           \- Tip: delete the source branch, and for future work create a fresh one from main to avoid merge conflicts
-      #           \- [View build log](${{steps.get-job-url.outputs.result}})
-      #         `
-      #       })
+      # https://app.slack.com/block-kit-builder https://www.text-utils.com/json-formatter/
+      - name: Post update to Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          channel-id: ${{env.SLACK_CHANNEL_ID}}
+          payload: >
+                {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*Build deployed to production* 🏠 \n - Target server: ${{inputs.target_production_server_nickname}} \n - Your app's URL: ${{inputs.full_app_url}} \n - Tip: delete the source branch, and for future work create a fresh one from main to avoid merge conflicts"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details"},"value":"click_me","url":"${{steps.get-job-url.outputs.result}}"}]}]}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
 
-      # # https://app.slack.com/block-kit-builder https://www.text-utils.com/json-formatter/
-      # - name: Post update to Slack
-      #   uses: slackapi/slack-github-action@v1.26.0
-      #   with:
-      #     channel-id: ${{env.SLACK_CHANNEL_ID}}
-      #     payload: >
-      #           {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*Build deployed to production* 🏠 \n - Target server: ${{inputs.target_production_server_nickname}} \n - Your app's URL: ${{inputs.full_app_url}} \n - Tip: delete the source branch, and for future work create a fresh one from main to avoid merge conflicts"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details"},"value":"click_me","url":"${{steps.get-job-url.outputs.result}}"}]}]}
-      #   env:
-      #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
-
-      - name: Remove from staging server
+      - name: Remove artifacts from staging server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ env.STAGING_SERVER_HOST }}
