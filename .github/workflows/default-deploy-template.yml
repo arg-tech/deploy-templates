@@ -131,7 +131,7 @@ jobs:
             fi
 
             nginx_config="
-            # Subdomain for repo ${{ github.event.repository.name }}
+            # Subdomain for repo: ${{ github.event.repository.name }}
             server {
               listen 80;
               server_name $staging_domain;
@@ -152,7 +152,7 @@ jobs:
               sudo nginx -s reload
               echo "Success: nginx configuration reloaded"
             else
-              echo "Error: nginx configuration test failed. Please contact IWG immediately."
+              echo "Error: nginx configuration test failed. Please contact IWG."
               exit 1
             fi
 
@@ -351,7 +351,7 @@ jobs:
             fi
 
             nginx_config="
-            # Subdomain for repo ${{ github.event.repository.name }}
+            # Subdomain for repo: ${{ github.event.repository.name }}
             server {
               listen 80;
               server_name ${{ inputs.full_app_url }};
