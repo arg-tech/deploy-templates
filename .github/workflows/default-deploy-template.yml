@@ -5,11 +5,15 @@ on:
       target_production_server_nickname:
         required: true
         type: string
+      full_app_url:
+        required: true
+        type: string
+      app_port:
+        required: true
+        type: string
     secrets:
       staging_ssh_key:
           required: true
-      production_primary_ssh_key:
-        required: true
       production_project_secrets:
         required: false
       sshgateway_ssh_key:
@@ -18,9 +22,10 @@ on:
         required: true
 
 env:
-  STAGING_SERVER_IP: 178.79.188.16
-  STAGING_SSH_USER: deploy-user
-  PRODUCTION_PRIMARY_SSH_USER: deploy-user
+  STAGING_SERVER_HOST: 178.79.188.16
+  SSH_GATEWAY_HOST: sshgateway.computing.dundee.ac.uk
+  ARGAND_HOST: argand
+  DEPLOY_SSH_USER: deploy-user
   # Syntax for workflow names is: job-name-in-caller-workflow / job-name-in-this-workflow https://stackoverflow.com/questions/71240338/
   STAGING_WORKFLOW_NAME: Environments / Staging
   PRODUCTION_WORKFLOW_NAME: Environments / Production
@@ -40,8 +45,8 @@ jobs:
   #     - name: Pull latest code
   #       uses: appleboy/ssh-action@v1.0.3
   #       with:
-  #         host: ${{ env.STAGING_SERVER_IP }}
-  #         username: ${{ env.STAGING_SSH_USER }}
+  #         host: ${{ env.STAGING_SERVER_HOST }}
+  #         username: ${{ env.DEPLOY_SSH_USER }}
   #         key: ${{ secrets.staging_ssh_key }}
   #         script_stop: false
   #         script: |
@@ -62,8 +67,8 @@ jobs:
   #       if: github.base_ref == 'main'
   #       uses: appleboy/ssh-action@v1.0.3
   #       with:
-  #         host: ${{ env.STAGING_SERVER_IP }}
-  #         username: ${{ env.STAGING_SSH_USER }}
+  #         host: ${{ env.STAGING_SERVER_HOST }}
+  #         username: ${{ env.DEPLOY_SSH_USER }}
   #         key: ${{ secrets.staging_ssh_key }}
   #         script_stop: false
   #         script: |
@@ -80,8 +85,8 @@ jobs:
   #         SECRETS: ${{ secrets.production_project_secrets }}
   #       uses: appleboy/ssh-action@v1.0.3
   #       with:
-  #         host: ${{ env.STAGING_SERVER_IP }}
-  #         username: ${{ env.STAGING_SSH_USER }}
+  #         host: ${{ env.STAGING_SERVER_HOST }}
+  #         username: ${{ env.DEPLOY_SSH_USER }}
   #         key: ${{ secrets.staging_ssh_key }}
   #         envs: SECRETS
   #         script_stop: false
@@ -103,8 +108,8 @@ jobs:
   #     - name: Build containers
   #       uses: appleboy/ssh-action@v1.0.3
   #       with:
-  #         host: ${{ env.STAGING_SERVER_IP }}
-  #         username: ${{ env.STAGING_SSH_USER }}
+  #         host: ${{ env.STAGING_SERVER_HOST }}
+  #         username: ${{ env.DEPLOY_SSH_USER }}
   #         key: ${{ secrets.staging_ssh_key }}
   #         script_stop: false
   #         script: |
@@ -232,11 +237,10 @@ jobs:
           username: deploy-user
           key: ${{ secrets.argand_ssh_key }}
           proxy_host: sshgateway.computing.dundee.ac.uk
-          proxy_username: deploy-user
+          proxy_username: ${{ env.DEPLOY_SSH_USER }}
           proxy_key: ${{ secrets.sshgateway_ssh_key }}
           script_stop: false
           script: |
-            echo foo > /tmp/foo
             cd ~/repos
             if [ ! -d "${{ github.event.repository.name }}" ]; then
               git clone git@github.com:arg-tech/${{ github.event.repository.name }}.git
@@ -248,7 +252,7 @@ jobs:
             git checkout ${{ github.head_ref }}
             git reset --hard HEAD
             git merge '@{u}'
-            echo "Repository pulled and updated"
+            echo "Repository pulled and updated"  
 
       # - name: Create project secrets
       #   if: ${{ env.ARE_SECRETS_PRESENT == 'true' }}
@@ -258,7 +262,7 @@ jobs:
       #   uses: appleboy/ssh-action@v1.0.3
       #   with:
       #     host: ${{ steps.convert-nickname.outputs.ip_address }}
-      #     username: ${{ env.PRODUCTION_PRIMARY_SSH_USER }}
+      #     username: ${{ env.DEPLOY_SSH_USER }}
       #     key: ${{ secrets.production_primary_ssh_key }}
       #     envs: SECRETS
       #     script_stop: false
@@ -281,12 +285,55 @@ jobs:
       #   uses: appleboy/ssh-action@v1.0.3
       #   with:
       #     host: ${{ steps.convert-nickname.outputs.ip_address }}
-      #     username: ${{ env.PRODUCTION_PRIMARY_SSH_USER }}
+      #     username: ${{ env.DEPLOY_SSH_USER }}
       #     key: ${{ secrets.production_primary_ssh_key }}
       #     script_stop: false
       #     script: |
       #       cd ~/repos/${{ github.event.repository.name }}
       #       docker compose up -d --build
+
+      - name: Provision new subdomain
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.ARGAND_HOST }}
+          username: ${{ env.DEPLOY_SSH_USER }}
+          key: ${{ secrets.argand_ssh_key }}
+          proxy_host: ${{ env.SSH_GATEWAY_HOST }}
+          proxy_username: ${{ env.DEPLOY_SSH_USER }}
+          proxy_key: ${{ secrets.sshgateway_ssh_key }}
+          script: |
+            if [ -f "/etc/nginx/sites-available/${{ inputs.full_app_url }}" ]; then
+              existing_config_repo=$(grep -oP '(?<=Subdomain for repo ).*(?= })' /etc/nginx/sites-available/${{ inputs.full_app_url }})
+              if [ "$existing_config_repo" != "${{ github.event.repository.name }}" ]; then
+                echo "A different repository ($existing_config_repo) uses this domain. Choose another domain or contact IWG."
+                exit 1
+            fi
+
+            nginx_config="
+            # Subdomain for repo ${{ github.event.repository.name }}
+            server {
+              listen 80;
+              server_name ${{ inputs.full_app_url }};
+        
+              location / {
+                  proxy_set_header   X-Forwarded-For \$remote_addr;
+                  proxy_set_header   Host \$http_host;
+                  proxy_pass         \"http://127.0.0.1:${{ inputs.app_port }}\";
+              }
+            }"
+
+            file_path="/etc/nginx/sites-available/${{ inputs.full_app_url }}"
+            echo "$nginx_config" > "$file_path"
+            ln -s "$file_path" "/etc/nginx/sites-enabled/"
+
+            sudo nginx -t
+            if [ $? -eq 0 ]; then
+              sudo nginx -s reload
+              echo "Success: nginx configuration reloaded"
+            else
+              echo "Error: nginx configuration test failed. Please contact IWG immediately."
+              exit 1
+            fi
 
       # - name: Get subdomain from compose file
       #   id: get-subdomain
