@@ -111,19 +111,24 @@ jobs:
             cd ~/repos/${{ github.event.repository.name }}
             docker compose up -d --build
 
+      - name: Convert production subdomain to staging subdomain
+        id: convert-subdomain
+        run: |
+          staging_domain=$(echo "${{ inputs.full_app_url }}" | sed 's/amfws/amfws-staging/')
+          echo "staging_domain=$staging_domain" >> "$GITHUB_OUTPUT"
+          echo "Staging domain is: $staging_domain"
+
       - name: Provision new subdomain
         uses: appleboy/ssh-action@v1.0.3
-        id: provision-subdomain
         with:
           host: ${{ env.STAGING_SERVER_HOST }}
           username: ${{ env.DEPLOY_SSH_USER }}
           key: ${{ secrets.staging_ssh_key }}
           script: |
-            staging_domain=$(echo "${{ inputs.full_app_url }}" | sed 's/amfws/amfws-staging/')
-            echo "staging_domain=$staging_domain" >> "$GITHUB_OUTPUT"
+            full_domain=${{ steps.convert-subdomain.outputs.staging_domain }}
 
-            if [ -f "/etc/nginx/sites-available/$staging_domain" ]; then
-              existing_config_repo=$(grep -oP '(?<=Subdomain for repo: ).*' /etc/nginx/sites-available/$staging_domain)
+            if [ -f "/etc/nginx/sites-available/$full_domain" ]; then
+              existing_config_repo=$(grep -oP '(?<=Subdomain for repo: ).*' /etc/nginx/sites-available/$full_domain)
               if [ "$existing_config_repo" != "${{ github.event.repository.name }}" ]; then
                 echo "A different repository ($existing_config_repo) uses this domain. Choose another domain or contact IWG."
                 exit 1
@@ -135,7 +140,7 @@ jobs:
             # Subdomain for repo: ${{ github.event.repository.name }}
             server {
               listen 80;
-              server_name $staging_domain;
+              server_name $full_domain;
         
               location / {
                   proxy_set_header   X-Forwarded-For \$remote_addr;
@@ -144,9 +149,9 @@ jobs:
               }
             }"
 
-            file_path="/etc/nginx/sites-available/$staging_domain"
+            file_path="/etc/nginx/sites-available/$full_domain"
             echo "$nginx_config" > "$file_path"
-            ln -s "$file_path" "/etc/nginx/sites-enabled/"
+            ln -sf "$file_path" "/etc/nginx/sites-enabled/"
 
             sudo nginx -t
             if [ $? -eq 0 ]; then
@@ -156,10 +161,6 @@ jobs:
               echo "Error: nginx configuration test failed. Please contact IWG."
               exit 1
             fi
-
-      - name: Print staging domain
-        run: |
-          echo "Staging domain is: ${{ steps.provision-subdomain.outputs.staging_domain }}"
 
       - name: Get build details URL
         uses: actions/github-script@v7
@@ -188,7 +189,7 @@ jobs:
               repo: context.repo.repo,
               body: ` 
               **New build (#${{github.run_number}}) deployed to staging** 🚧
-                  \- Test it by accessing URL: ${{ steps.provision-subdomain.outputs.staging_domain }}
+                  \- Test it by accessing URL: ${{ steps.convert-subdomain.outputs.staging_domain }}
                   \- If you update the PR or create another one, a new build will be created, replacing this one
                   \- [View build log](${{steps.get-job-url.outputs.result}})
                       
@@ -202,7 +203,7 @@ jobs:
         with:
           channel-id: ${{env.SLACK_CHANNEL_ID}}
           payload: >
-                {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*New build (#${{github.run_number}}) deployed to staging* 🚧 \n - Test it by accessing ${{ steps.provision-subdomain.outputs.staging_domain }}\n - If you update the PR or create another one, a new build will be created, replacing this one \n\n *Note:* If this PR is to main, only authorized users will be allowed to merge. Once merged to main, the build will be promoted to the production server. "}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details"},"value":"click_me","url":"${{steps.get-job-url.outputs.result}}"}]}]}
+                {"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"_Update in repository ${{ github.event.repository.name }}_"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*New build (#${{github.run_number}}) deployed to staging* 🚧 \n - Test it by accessing ${{ steps.convert-subdomain.outputs.staging_domain }}\n - If you update the PR or create another one, a new build will be created, replacing this one \n\n *Note:* If this PR is to main, only authorized users will be allowed to merge. Once merged to main, the build will be promoted to the production server. "}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"View build details"},"value":"click_me","url":"${{steps.get-job-url.outputs.result}}"}]}]}
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_DEPLOYMENT_BOT_TOKEN }}
 
@@ -347,8 +348,10 @@ jobs:
           proxy_username: ${{ env.DEPLOY_SSH_USER }}
           proxy_key: ${{ secrets.sshgateway_ssh_key }}
           script: |
-            if [ -f "/etc/nginx/sites-available/${{ inputs.full_app_url }}" ]; then
-              existing_config_repo=$(grep -oP '(?<=Subdomain for repo: ).*' /etc/nginx/sites-available/${{ inputs.full_app_url }})
+            full_domain=${{ inputs.full_app_url }}
+
+            if [ -f "/etc/nginx/sites-available/$full_domain" ]; then
+              existing_config_repo=$(grep -oP '(?<=Subdomain for repo: ).*' /etc/nginx/sites-available/$full_domain)
               if [ "$existing_config_repo" != "${{ github.event.repository.name }}" ]; then
                 echo "A different repository ($existing_config_repo) uses this domain. Choose another domain or contact IWG."
                 exit 1
@@ -360,7 +363,7 @@ jobs:
             # Subdomain for repo: ${{ github.event.repository.name }}
             server {
               listen 80;
-              server_name ${{ inputs.full_app_url }};
+              server_name $full_domain;
         
               location / {
                   proxy_set_header   X-Forwarded-For \$remote_addr;
@@ -369,9 +372,9 @@ jobs:
               }
             }"
 
-            file_path="/etc/nginx/sites-available/${{ inputs.full_app_url }}"
+            file_path="/etc/nginx/sites-available/$full_domain"
             echo "$nginx_config" > "$file_path"
-            ln -s "$file_path" "/etc/nginx/sites-enabled/"
+            ln -sf "$file_path" "/etc/nginx/sites-enabled/"
 
             sudo nginx -t
             if [ $? -eq 0 ]; then
