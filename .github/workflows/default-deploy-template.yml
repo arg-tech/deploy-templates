@@ -131,6 +131,7 @@ jobs:
             fi
 
             nginx_config="
+            # Below comment is used by the CI/CD pipeline, do not edit or remove
             # Subdomain for repo: ${{ github.event.repository.name }}
             server {
               listen 80;
@@ -351,6 +352,7 @@ jobs:
             fi
 
             nginx_config="
+            # Below comment is used by the CI/CD pipeline, do not edit or remove
             # Subdomain for repo: ${{ github.event.repository.name }}
             server {
               listen 80;
