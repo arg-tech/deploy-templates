@@ -414,7 +414,7 @@ jobs:
 
       - name: Remove artifacts from staging server
         # Logs utility should stay on the staging server
-        if: ${{ github.event.repository.name }} != 'dozzle-log-streamer'
+        if: github.repository != 'arg-tech/dozzle-log-streamer'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ env.STAGING_SERVER_HOST }}
