@@ -19,7 +19,7 @@ on:
       sshgateway_ssh_key:
         required: true
       argand_ssh_key:
-        required: true
+        required: false
 
 env:
   STAGING_SERVER_HOST: 178.79.188.16
